@@ -106,7 +106,7 @@ func storeExists() bool {
 func server() {
 	fmt.Println("Start server...")
 	// Listen on port 9889
-	ln, err := net.Listen("tcp", ":9889")
+	ln, err := net.Listen("tcp", ":9248")
 	if err != nil {
 		panic(err)
 	}

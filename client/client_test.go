@@ -16,6 +16,8 @@ func getWord() string {
 	return wordList[rand.Intn(100)]
 }
 
+var serverAddress string = "127.0.0.1:9248"
+
 func setCommand(conn net.Conn, key string, value string) {
 	setMessage := fmt.Sprintf("set %s %d\r\n%s\r\n", key, len([]byte(value)), value)
 	// send to server
@@ -29,7 +31,7 @@ func getCommand(conn net.Conn, key string) {
 
 func clientSetGet(wg *sync.WaitGroup, t *testing.T) {
 	// connect to server
-	conn, err := net.Dial("tcp", "127.0.0.1:9889")
+	conn, err := net.Dial("tcp", serverAddress)
 	if err != nil {
 		fmt.Println(err)
 		wg.Done()
@@ -64,7 +66,7 @@ func clientSetGet(wg *sync.WaitGroup, t *testing.T) {
 
 func TestSetCommandStored(t *testing.T) {
 	// connect to server
-	conn, err := net.Dial("tcp", "127.0.0.1:9889")
+	conn, err := net.Dial("tcp", serverAddress)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -87,7 +89,7 @@ func TestSetCommandStored(t *testing.T) {
 
 func TestGetCommandFound(t *testing.T) {
 	// connect to server
-	conn, err := net.Dial("tcp", "127.0.0.1:9889")
+	conn, err := net.Dial("tcp", serverAddress)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -110,7 +112,7 @@ func TestGetCommandFound(t *testing.T) {
 
 func TestGetCommandEmpty(t *testing.T) {
 	// connect to server
-	conn, err := net.Dial("tcp", "127.0.0.1:9889")
+	conn, err := net.Dial("tcp", serverAddress)
 	if err != nil {
 		fmt.Println(err)
 		return
