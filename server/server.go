@@ -30,22 +30,24 @@ func loadJSON() map[string]string {
 
 func getJSON() map[string]string {
 	mu.Lock()
-	defer mu.Unlock()
-	return loadJSON()
+	keyStore := loadJSON()
+	mu.Unlock()
+	return keyStore
 }
 
 func setJSON(key string, value string) error {
 	// Locking for write
 	mu.Lock()
-	defer mu.Unlock()
 	keyStore := loadJSON()
 	keyStore[key] = value
 	updatedStore, _ := json.Marshal(keyStore)
 	err := ioutil.WriteFile(storePath, updatedStore, os.ModePerm)
 	if err != nil {
 		fmt.Print(err)
+		mu.Unlock()
 		return err
 	}
+	mu.Unlock()
 	return nil
 }
 
@@ -66,7 +68,7 @@ func processMessage(conn net.Conn) {
 
 		if command[0] == "get" {
 			key := command[1]
-			keyStore := loadJSON()
+			keyStore := getJSON()
 			if val, ok := keyStore[string(key)]; ok {
 				res := fmt.Sprintf("VALUE %s %d\r\n%s\r\nEND\r\n", key, len([]byte(val)), val)
 				conn.Write([]byte(string(res)))
@@ -78,7 +80,6 @@ func processMessage(conn net.Conn) {
 			//Store value in file
 			key := command[1]
 			value, _ := reader.ReadString('\n')
-
 			fmt.Printf("SET %s: %s", key, value)
 			err := setJSON(key, strings.TrimSpace(value))
 			if err != nil {
