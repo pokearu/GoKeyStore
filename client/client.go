@@ -18,7 +18,12 @@ func getWord() string {
 func client(wg *sync.WaitGroup) {
 
 	// connect to server
-	conn, _ := net.Dial("tcp", "127.0.0.1:9889")
+	conn, err := net.Dial("tcp", "127.0.0.1:9889")
+	if err != nil {
+		fmt.Println(err)
+		wg.Done()
+		return
+	}
 
 	key := getWord()
 	value := getWord()
