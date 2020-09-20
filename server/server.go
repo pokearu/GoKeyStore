@@ -16,8 +16,6 @@ var storePath string = "./store.json"
 var mu sync.Mutex
 
 func loadJSON() map[string]string {
-	mu.Lock()
-	defer mu.Unlock()
 	// read JSON file
 	data, err := ioutil.ReadFile(storePath)
 	if err != nil {
@@ -30,11 +28,17 @@ func loadJSON() map[string]string {
 	return keyStore
 }
 
-func saveJSON(key string, value string) error {
-	keyStore := loadJSON()
+func getJSON() map[string]string {
+	mu.Lock()
+	defer mu.Unlock()
+	return loadJSON()
+}
+
+func setJSON(key string, value string) error {
 	// Locking for write
 	mu.Lock()
 	defer mu.Unlock()
+	keyStore := loadJSON()
 	keyStore[key] = value
 	updatedStore, _ := json.Marshal(keyStore)
 	err := ioutil.WriteFile(storePath, updatedStore, os.ModePerm)
@@ -74,7 +78,9 @@ func processMessage(conn net.Conn) {
 			//Store value in file
 			key := command[1]
 			value, _ := reader.ReadString('\n')
-			err := saveJSON(key, strings.TrimSpace(value))
+
+			fmt.Printf("SET %s: %s", key, value)
+			err := setJSON(key, strings.TrimSpace(value))
 			if err != nil {
 				conn.Write([]byte(string("NOT-STORED\r\n")))
 			} else {
