@@ -18,8 +18,8 @@ func getWord() string {
 
 var serverAddress string = "127.0.0.1:9248"
 
-func setCommand(conn net.Conn, key string, value string) {
-	setMessage := fmt.Sprintf("set %s %d\r\n%s\r\n", key, len([]byte(value)), value)
+func setCommand(conn net.Conn, key string, value string, size int) {
+	setMessage := fmt.Sprintf("set %s %d\r\n%s\r\n", key, size, value)
 	// send to server
 	fmt.Fprintf(conn, "%s", setMessage)
 }
@@ -39,7 +39,7 @@ func clientSetGet(wg *sync.WaitGroup, t *testing.T) {
 	}
 	key := getWord()
 	value := getWord()
-	setCommand(conn, key, value)
+	setCommand(conn, key, value, len([]byte(value)))
 	getCommand(conn, key)
 	reader := bufio.NewReader(conn)
 	// Read next 4 messages from server
@@ -74,7 +74,7 @@ func TestSetCommandStored(t *testing.T) {
 	// Set message
 	key := getWord()
 	value := getWord()
-	setCommand(conn, key, value)
+	setCommand(conn, key, value, len([]byte(value)))
 	// wait for reply
 	message, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
@@ -83,6 +83,29 @@ func TestSetCommandStored(t *testing.T) {
 	message = strings.TrimSpace(message)
 	if message != "STORED" {
 		t.Errorf("Got %s, Expected %s", message, "STORED")
+	}
+	conn.Close()
+}
+
+func TestSetCommandERROR(t *testing.T) {
+	// connect to server
+	conn, err := net.Dial("tcp", serverAddress)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// Set message
+	key := getWord()
+	value := getWord()
+	setCommand(conn, key, value, 0)
+	// wait for reply
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println(err)
+	}
+	message = strings.TrimSpace(message)
+	if message == "STORED" {
+		t.Errorf("Got %s, Expected %s", message, "CLIENT_ERROR")
 	}
 	conn.Close()
 }
@@ -142,11 +165,23 @@ func TestGetSetConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
-func main() {
-	// var wg sync.WaitGroup
-	// for i := 0; i < 1000; i++ {
-	// 	wg.Add(1)
-	// 	go clientSetGet(&wg, nil)
-	// }
-	// wg.Wait()
+func TestCommandNotSupported(t *testing.T) {
+	// connect to server
+	conn, err := net.Dial("tcp", serverAddress)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	command := fmt.Sprintf("add \r\n")
+	fmt.Fprintf(conn, "%s", command)
+	// wait for reply
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println(err)
+	}
+	message = strings.TrimSpace(message)
+	if !strings.Contains(message, "CLIENT_ERROR") {
+		t.Errorf("Got %s, Expected %s", message, "CLIENT_ERROR")
+	}
+	conn.Close()
 }

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -52,20 +54,19 @@ func setJSON(key string, value string) error {
 }
 
 func processMessage(conn net.Conn) {
-	fmt.Println("Started a connection!")
+	log.Println("Started a connection!")
 	reader := bufio.NewReader(conn)
 	for {
 		message, err := reader.ReadString('\n')
 		if err != nil {
 			if err.Error() == "EOF" {
+				log.Println("Ended a connection")
 				break
 			}
-			fmt.Println(err)
+			log.Println(err)
 		}
-
 		// Parse command by Space
 		command := strings.Fields(message)
-
 		if command[0] == "get" {
 			key := command[1]
 			keyStore := getJSON()
@@ -79,14 +80,22 @@ func processMessage(conn net.Conn) {
 		} else if command[0] == "set" {
 			//Store value in file
 			key := command[1]
+			valueSize := strings.TrimSpace(command[2])
 			value, _ := reader.ReadString('\n')
-			fmt.Printf("SET %s: %s", key, value)
+			computedValueSize := len([]byte(strings.TrimSpace(value)))
+			if size, _ := strconv.Atoi(valueSize); computedValueSize != size {
+				conn.Write([]byte(string("CLIENT_ERROR Value size does not match\r\n")))
+				continue
+			}
+			log.Printf("SET %s: %s", key, value)
 			err := setJSON(key, strings.TrimSpace(value))
 			if err != nil {
 				conn.Write([]byte(string("NOT-STORED\r\n")))
 			} else {
 				conn.Write([]byte(string("STORED\r\n")))
 			}
+		} else {
+			conn.Write([]byte(string("CLIENT_ERROR Command not supported\r\n")))
 		}
 	}
 	conn.Close()
@@ -98,13 +107,13 @@ func storeExists() bool {
 	} else if os.IsNotExist(err) {
 		return false
 	} else {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 }
 
 func server() {
-	fmt.Println("Start server...")
+	log.Println("Start server...")
 	// Listen on port 9889
 	ln, err := net.Listen("tcp", ":9248")
 	if err != nil {
@@ -120,7 +129,7 @@ func server() {
 
 func main() {
 	if !storeExists() {
-		err := ioutil.WriteFile(storePath, []byte("{}"), 0644)
+		err := ioutil.WriteFile(storePath, []byte(`{"unit":"test"}`), 0644)
 		if err != nil {
 			panic(err)
 		}
